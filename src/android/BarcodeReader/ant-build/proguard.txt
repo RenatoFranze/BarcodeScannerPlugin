@@ -1,0 +1,6 @@
+# view AndroidManifest.xml #generated:19
+-keep class com.comprovei.barcodereader.BarcodeReader { <init>(...); }
+
+# view res/layout/main.xml #generated:9
+-keep class com.comprovei.barcodereader.ViewfinderView { <init>(...); }
+

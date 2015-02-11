@@ -1,0 +1,22 @@
+D:\Projetos Android\BarcodeReader\ant-gen\com\comprovei\barcodereader\R.java \
+ : D:\Projetos Android\BarcodeReader\res\drawable-hdpi\ic_launcher.png \
+D:\Projetos Android\BarcodeReader\res\drawable-hdpi\launcher_icon.png \
+D:\Projetos Android\BarcodeReader\res\drawable-mdpi\ic_launcher.png \
+D:\Projetos Android\BarcodeReader\res\drawable-xhdpi\ic_launcher.png \
+D:\Projetos Android\BarcodeReader\res\drawable-xhdpi\launcher_icon.png \
+D:\Projetos Android\BarcodeReader\res\drawable-xxhdpi\ic_launcher.png \
+D:\Projetos Android\BarcodeReader\res\drawable-xxhdpi\launcher_icon.png \
+D:\Projetos Android\BarcodeReader\res\layout\main.xml \
+D:\Projetos Android\BarcodeReader\res\raw\beep.ogg \
+D:\Projetos Android\BarcodeReader\res\values\colors.xml \
+D:\Projetos Android\BarcodeReader\res\values\dimens.xml \
+D:\Projetos Android\BarcodeReader\res\values\ids.xml \
+D:\Projetos Android\BarcodeReader\res\values\strings.xml \
+D:\Projetos Android\BarcodeReader\res\values\styles.xml \
+D:\Projetos Android\BarcodeReader\res\values\themes.xml \
+D:\Projetos Android\BarcodeReader\res\values-pt\strings.xml \
+D:\Projetos Android\BarcodeReader\res\values-sw600dp\dimens.xml \
+D:\Projetos Android\BarcodeReader\res\values-sw720dp-land\dimens.xml \
+D:\Projetos Android\BarcodeReader\res\values-v11\styles.xml \
+D:\Projetos Android\BarcodeReader\res\values-v14\styles.xml \
+D:\Projetos Android\BarcodeReader\ant-build\AndroidManifest.xml \
