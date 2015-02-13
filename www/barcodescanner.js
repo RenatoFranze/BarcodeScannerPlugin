@@ -4,7 +4,7 @@ var ScannerLoader = function (require, exports, module) {
 		console.log("BarcodeScanner.js is created");
 	};
 	
-	BarcodeScanner.prototype.scan = function (successCallback, errorCallback, bulkMode) {
+	BarcodeScanner.prototype.scan = function (successCallback, errorCallback, opts) {
 		if(errorCallback == null){
 			errorCallback = function () {
 	        };    		
@@ -20,7 +20,7 @@ var ScannerLoader = function (require, exports, module) {
 	        return;
 	    }
 	
-	    exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', [{"BULK_MODE":bulkMode}]);
+	    exec(successCallback, errorCallback, 'BarcodeScanner', 'scan', [opts]);
 	}
 	
 	var barcodeScanner = new BarcodeScanner();
