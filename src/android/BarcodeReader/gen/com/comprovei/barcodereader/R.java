@@ -62,10 +62,9 @@ public final class R {
         public static final int preview_view=0x7f090007;
         public static final int quit=0x7f090004;
         public static final int restart_preview=0x7f090005;
-        public static final int result_button_view=0x7f090012;
         public static final int result_view=0x7f090009;
         public static final int return_scan_result=0x7f090006;
-        public static final int status_view=0x7f090013;
+        public static final int status_view=0x7f090012;
         public static final int time_text_view=0x7f09000d;
         public static final int type_text_view=0x7f09000c;
         public static final int viewfinder_view=0x7f090008;
@@ -75,6 +74,7 @@ public final class R {
     }
     public static final class raw {
         public static final int beep=0x7f050000;
+        public static final int failbeep=0x7f050001;
     }
     public static final class string {
         public static final int app_name=0x7f0a0000;

@@ -18,31 +18,50 @@ final class BeepManager implements MediaPlayer.OnCompletionListener, MediaPlayer
 	private static final String TAG = BeepManager.class.getSimpleName();
 
 	private static final float BEEP_VOLUME = 0.10f;
+	private static final float FAILBEEP_VOLUME = 10*BEEP_VOLUME;
 	private static final long VIBRATE_DURATION = 200L;
 
 	private final Activity mActivity;
-	private MediaPlayer mMediaPlayer;
+	private MediaPlayer mMediaPlayerBeep;
+	private MediaPlayer mMediaPlayerFailBeep;
 	private boolean mPlayBeep;
 	private boolean mVibrate;
 
 	BeepManager(Activity activity) {
 		this.mActivity = activity;
-		this.mMediaPlayer = null;
+		this.mMediaPlayerBeep = null;
+		this.mMediaPlayerFailBeep = null;
 		updatePrefs();
 	}
 
 	synchronized void updatePrefs() {
 		this.mPlayBeep = shouldBeep(true, this.mActivity);
 		this.mVibrate = true;
-		if (this.mPlayBeep && this.mMediaPlayer == null) {
+		if (this.mPlayBeep) {
 			this.mActivity.setVolumeControlStream(AudioManager.STREAM_MUSIC);
-			this.mMediaPlayer = buildMediaPlayer(mActivity);
+			if(this.mMediaPlayerBeep == null){
+				this.mMediaPlayerBeep = buildMediaPlayer(mActivity, R.raw.beep);				
+			}
+			if(this.mMediaPlayerFailBeep == null){
+				this.mMediaPlayerFailBeep = buildMediaPlayer(mActivity, R.raw.failbeep);					
+			}	
 		}
 	}
 
-	synchronized void playBeepSoundAndVibrate() {
-		if (this.mPlayBeep && this.mMediaPlayer != null) {
-			this.mMediaPlayer.start();
+	synchronized void playBeepSoundAndVibrate(int soundID) {
+		if (this.mPlayBeep) {
+			switch (soundID) {
+			case R.raw.beep:
+				if(this.mMediaPlayerBeep != null){
+					this.mMediaPlayerBeep.start();					
+				}
+				break;
+			case R.raw.failbeep:
+				if(this.mMediaPlayerFailBeep != null){
+					this.mMediaPlayerFailBeep.start();					
+				}
+				break;
+			}
 		}
 		if (this.mVibrate) {
 			Vibrator vibrator = (Vibrator) this.mActivity.getSystemService(Context.VIBRATOR_SERVICE);
@@ -60,19 +79,28 @@ final class BeepManager implements MediaPlayer.OnCompletionListener, MediaPlayer
 		return shouldPlayBeep;
 	}
 
-	private MediaPlayer buildMediaPlayer(Context activity) {
+	private MediaPlayer buildMediaPlayer(Context activity, int soundID) {
 		MediaPlayer mediaPlayer = new MediaPlayer();
 		mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 		mediaPlayer.setOnCompletionListener(this);
 		mediaPlayer.setOnErrorListener(this);
 		try {
-			AssetFileDescriptor file = activity.getResources().openRawResourceFd(R.raw.beep);
+			AssetFileDescriptor file = activity.getResources().openRawResourceFd(soundID);
 			try {
 				mediaPlayer.setDataSource(file.getFileDescriptor(), file.getStartOffset(), file.getLength());
 			} finally {
 				file.close();
 			}
-			mediaPlayer.setVolume(BEEP_VOLUME, BEEP_VOLUME);
+			
+			switch (soundID) {
+			case R.raw.beep:
+				mediaPlayer.setVolume(BEEP_VOLUME, BEEP_VOLUME);				
+				break;
+			case R.raw.failbeep:
+				mediaPlayer.setVolume(FAILBEEP_VOLUME, FAILBEEP_VOLUME);	
+				break;
+			}
+			
 			mediaPlayer.prepare();
 			return mediaPlayer;
 		} catch (IOException ioe) {
@@ -93,7 +121,8 @@ final class BeepManager implements MediaPlayer.OnCompletionListener, MediaPlayer
 			this.mActivity.finish();
 		} else {
 			mp.release();
-			this.mMediaPlayer = null;
+			this.mMediaPlayerBeep = null;
+			this.mMediaPlayerFailBeep = null;
 			updatePrefs();
 		}
 		return true;
@@ -101,9 +130,13 @@ final class BeepManager implements MediaPlayer.OnCompletionListener, MediaPlayer
 
 	@Override
 	public synchronized void close() {
-		if (this.mMediaPlayer != null) {
-			this.mMediaPlayer.release();
-			this.mMediaPlayer = null;
+		if (this.mMediaPlayerBeep != null) {
+			this.mMediaPlayerBeep.release();
+			this.mMediaPlayerBeep = null;
+		}
+		if (this.mMediaPlayerFailBeep != null) {
+			this.mMediaPlayerFailBeep.release();
+			this.mMediaPlayerFailBeep = null;
 		}
 	}
 }

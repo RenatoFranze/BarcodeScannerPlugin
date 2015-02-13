@@ -15,6 +15,8 @@ import com.google.zxing.ResultPoint;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
@@ -33,9 +35,36 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 class MutableInt implements Serializable{
-	int mValue = 1; // Começa em 1
+	int mValue; // Começa em 0
 	public void increment () { ++this.mValue;      }
 	public int  get ()       { return this.mValue; }
+	public void set (int value) {this.mValue = value; }
+}
+
+class Pair<A, B> implements Serializable{
+	A mFirst = null;
+	B mSecond = null;
+	
+	Pair(A first, B second){
+		this.mFirst = first;
+		this.mSecond = second;
+	}
+	
+	public A getFirst(){
+		return this.mFirst;
+	}
+	
+	public void setFirst(A first){
+		this.mFirst = first;
+	}
+	
+	public B getSecond(){
+		return this.mSecond;
+	}
+	
+	public void setSecond(B second){
+		this.mSecond = second;
+	}
 }
 
 public class BarcodeReader extends Activity implements SurfaceHolder.Callback{	
@@ -61,8 +90,9 @@ public class BarcodeReader extends Activity implements SurfaceHolder.Callback{
     private Map<DecodeHintType,?> mDecodeHints;
     private String mCharacterSet;
     private BeepManager mBeepManager;
-    private boolean mBulkMode = false;
-    private HashMap<String, MutableInt> mBulkReading;
+    private boolean mBulkMode = true;
+    private boolean mCheckBarcodes = false;
+    private Map<String, Pair<Integer, Integer>> mAllBarcodes;
     
     ViewfinderView getViewfinderView() {
         return this.mViewFinderView;
@@ -116,15 +146,58 @@ public class BarcodeReader extends Activity implements SurfaceHolder.Callback{
         this.mDecodeFormats = null;
         this.mCharacterSet = null;
         
+        // Armazena todos os codigos de barras lido
+        this.mAllBarcodes = new HashMap<String, Pair<Integer, Integer>>();
+        
         if(intent != null){
         	String action = intent.getAction();
         	Log.i(TAG, "Ação enviada: " + action);
         	if(Intents.Scan.ACTION.equals(action)){
         		Log.i(TAG, "Ação igual");
         		this.mSource = IntentSource.NATIVE_APP_INTENT;
-        		this.mBulkMode = intent.getBooleanExtra("BULK_MODE", false);
+        		this.mBulkMode = intent.getBooleanExtra(Intents.Scan.BULK_MODE, false);
+        		this.mCheckBarcodes = intent.getBooleanExtra(Intents.Scan.CHECK_BARCODES, false);
         		
-        		if(this.mBulkMode) this.mBulkReading = new HashMap<String, MutableInt>();
+        		if(this.mCheckBarcodes){
+        			// Carrega a lista de barcodes a serem verificados
+        			String barcodes = intent.getStringExtra(Intents.Scan.BARCODES);
+            		
+            		if(barcodes != null){
+            			String[] arrayBarcodes = barcodes.split(";");
+            			int count = arrayBarcodes.length;
+            			
+            			String barcode = "";
+            			Pair<Integer, Integer> values;
+            			int readQuantity, total, separatorPosition1, separatorPosition2 = 0;   
+            			
+            			for(int i = count - 1; i >= 0; i--){
+            				separatorPosition1 = arrayBarcodes[i].indexOf(":");
+            				separatorPosition2 = arrayBarcodes[i].indexOf("/");
+            				
+            				// Pega o código de barras
+            				barcode = arrayBarcodes[i].substring(0, separatorPosition1);
+            				
+            				// Pega a quantidade já lida
+            				readQuantity = Integer.parseInt(arrayBarcodes[i].substring(separatorPosition1 + 1, separatorPosition2));
+            				
+            				// Pega a quantidade total a ser lida
+            				total = Integer.parseInt(arrayBarcodes[i].substring(separatorPosition2 + 1));
+            				
+            				// Verifica se o barcode já existe na lista
+            				values = this.mAllBarcodes.get(barcode);
+            				
+            				if(values == null){
+            					values = new Pair(readQuantity, total);
+            					this.mAllBarcodes.put(barcode, values);        					
+            				}else{
+            					readQuantity += values.getFirst();
+            					values.setFirst(readQuantity);      
+            					total += values.getSecond();
+            					values.setSecond(total);
+            				}
+            			}
+            		}        			
+        		}
         		
         		String customPromptMessage = intent.getStringExtra(Intents.Scan.PROMPT_MESSAGE);
         		if(customPromptMessage != null){
@@ -176,22 +249,12 @@ public class BarcodeReader extends Activity implements SurfaceHolder.Callback{
 		case KeyEvent.KEYCODE_BACK:
 			if(this.mSource == IntentSource.NATIVE_APP_INTENT){
 				if(this.mBulkMode){
-					if(this.mBulkReading.isEmpty()){
+					if(this.mAllBarcodes.isEmpty()){
 						setResult(RESULT_CANCELED);	
 						finish();
 						return true;						
 					}else{
-						Intent intent = new Intent(getIntent().getAction());
-						intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
-						
-						String contents = "";
-						for(String key: this.mBulkReading.keySet()){
-							contents = contents.concat("{" + key + ":" + this.mBulkReading.get(key).mValue + "}");
-                		}
-						
-						intent.putExtra(Intents.Scan.RESULT, contents);
-						
-						sendReplyMessage(R.id.return_scan_result, intent, DEFAULT_INTENT_RESULT_DURATION_MS);	
+						handleIntentReturn();	
 						return true;
 					}
 				}else{
@@ -267,61 +330,83 @@ public class BarcodeReader extends Activity implements SurfaceHolder.Callback{
 	public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
 	}
 	
-	public void handleDecode(Result rawResult, Bitmap barcode, float scaleFactor){
+	public void handleDecode(Result rawResult, Bitmap barcodeImage, float scaleFactor){
 		this.mLastResult = rawResult;
 		
-		boolean fromLiveScan = barcode != null;
-	    if (fromLiveScan) {
-	    	this.mBeepManager.playBeepSoundAndVibrate();
-	    	drawResultPoints(barcode, scaleFactor, rawResult);	    	
+		boolean fromLiveScan = barcodeImage != null;
+	    if (fromLiveScan) {	    	
+	    	drawResultPoints(barcodeImage, scaleFactor, rawResult);	    	
 	    }
 	    
-	    switch (this.mSource) {
-		case NATIVE_APP_INTENT:
-			if(this.mBulkMode){
-				handleBulkModeExternally(rawResult, barcode);
+		checkBarcode(rawResult.getText());	
+		
+		// Leitura unica ou em massa
+		if(this.mBulkMode == false){		
+			if(this.mSource == IntentSource.NATIVE_APP_INTENT){
+				handleIntentReturn();					
 			}else{
-				handleDecodeExternally(rawResult, barcode);
-			}			
-			break;
-		case NONE:
-		    if (fromLiveScan && this.mBulkMode) {
-		    	Toast.makeText(getApplicationContext(),
-		                         getResources().getString(R.string.msg_bulk_mode_scanned) + " (" + rawResult.getText() + ')',
-		                         Toast.LENGTH_SHORT).show();
-		        // Wait a moment or else it will scan the same barcode continuously about 3 times
-		    	restartPreviewAfterDelay(BULK_MODE_SCAN_DELAY_MS);
-		    } else {
-		    	//handleDecodeInternally(rawResult, resultHandler, barcode);
-		    }	
-		    break;
-		}
-	}
-	
-	private void handleBulkModeExternally(Result rawResult, Bitmap barcodeImage) {
-		String barcode = rawResult.getText();
-		
-		MutableInt count = this.mBulkReading.get(barcode);
-		if(count == null){
-			// Barcode ainda não existe no hashtable
-			this.mBulkReading.put(barcode, new MutableInt());
+				resetStatusView();
+			}
 		}else{
-			// Incrementa a quantidade do barcode lido
-			count.increment();
+			restartPreviewAfterDelay(BULK_MODE_SCAN_DELAY_MS);
 		}	
-		Toast.makeText(getApplicationContext(), "Barcode: " + barcode + " Quantidade lida: " + this.mBulkReading.get(barcode).mValue, Toast.LENGTH_SHORT).show();
-		restartPreviewAfterDelay(BULK_MODE_SCAN_DELAY_MS);
-	}
-
-	private void handleDecodeInternally(Result rawResult, Bitmap barcode) {
-		
 	}
 	
-	private void handleDecodeExternally(Result rawResult, Bitmap barcode) {
-		if(barcode != null){
-			this.mViewFinderView.drawResultBitmap(barcode);
-		}
+	private void checkBarcode(String barcode){
+		Pair<Integer, Integer> values = this.mAllBarcodes.get(barcode);
+		int quantity = 1;
 		
+		// Verifica se o barcode está na lista dos disponíveis
+		// Senão, insere na lista lida
+		if(this.mCheckBarcodes){			
+			// Barcode não está na lista, alertar usuario
+			// Senão, verificar se a quantidade lida é menor que o total e incrementar
+			if(values == null){
+				this.mBeepManager.playBeepSoundAndVibrate(R.raw.failbeep);
+				alertHandler("Código de barras lido " + barcode + " não faz parte da lista.", "Código inválido");
+			}else{
+				quantity = values.getFirst();
+				int total = values.getSecond();
+				if(quantity < total){
+					this.mBeepManager.playBeepSoundAndVibrate(R.raw.beep);
+					quantity++;
+					values.setFirst(quantity);			
+					Toast.makeText(getApplicationContext(), "Barcode: " + barcode + " Quantidade lida/Total: " + quantity + "/" + total, Toast.LENGTH_SHORT).show();
+				}else{
+					this.mBeepManager.playBeepSoundAndVibrate(R.raw.failbeep);
+					alertHandler("Código de barras lido " + barcode + " já atingiu a quantidade necessária.", "Código inválido");
+				}
+			}
+		}else{
+			this.mBeepManager.playBeepSoundAndVibrate(R.raw.beep);
+			if(values == null){
+				values = new Pair(quantity, 0);
+				this.mAllBarcodes.put(barcode, values); 				
+			}else{
+				quantity = values.getFirst();
+				quantity++;
+				values.setFirst(quantity);	
+			}
+			Toast.makeText(getApplicationContext(), "Barcode: " + barcode + " Quantidade lida: " + quantity, Toast.LENGTH_SHORT).show();
+		}		
+	}
+	
+	private void alertHandler(String message, String title){
+		AlertDialog.Builder builder1 = new AlertDialog.Builder(BarcodeReader.this);	
+		builder1.setTitle(title);
+		builder1.setMessage(message);
+		builder1.setCancelable(true);
+        builder1.setPositiveButton(R.string.button_ok, new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int which) {
+				dialog.cancel();				
+			}
+		});
+        
+		AlertDialog alert1 = builder1.create();
+		alert1.show();		
+	}
+	
+	private void handleIntentReturn(){
 		long resultDurationMS;
 		if(getIntent() == null){
 			resultDurationMS = DEFAULT_INTENT_RESULT_DURATION_MS;
@@ -330,15 +415,23 @@ public class BarcodeReader extends Activity implements SurfaceHolder.Callback{
                                                   		DEFAULT_INTENT_RESULT_DURATION_MS);
 		}
 		
-		if(this.mSource == IntentSource.NATIVE_APP_INTENT){
-			Intent intent = new Intent(getIntent().getAction());
-			intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
-			intent.putExtra(Intents.Scan.RESULT, rawResult.toString());
-			
-			sendReplyMessage(R.id.return_scan_result, intent, resultDurationMS);
+		Intent intent = new Intent(getIntent().getAction());
+		intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_WHEN_TASK_RESET);
+		
+		String contents = "";
+		int readQuantity = 0;
+		for(String key: this.mAllBarcodes.keySet()){
+			readQuantity = this.mAllBarcodes.get(key).getFirst();
+			if (readQuantity > 0) contents = contents.concat(key + ":" + readQuantity  + ";");
 		}
+		
+		if(null != contents && contents.length() > 0) contents = contents.substring(0, contents.length()-1);						
+		
+		intent.putExtra(Intents.Scan.RESULT, contents);
+		
+		sendReplyMessage(R.id.return_scan_result, intent, resultDurationMS);			
 	}
-	
+		
 	private void drawResultPoints(Bitmap barcode, float scaleFactor, Result rawResult) {
 		ResultPoint[] points = rawResult.getResultPoints();
 	    if (points != null && points.length > 0) {
@@ -400,7 +493,7 @@ public class BarcodeReader extends Activity implements SurfaceHolder.Callback{
 	}
 	
 	private void resetStatusView() {
-	    this.mStatusView.setText(R.string.msg_default_status);
+	    //this.mStatusView.setText(R.string.msg_default_status);
 	    this.mStatusView.setVisibility(View.VISIBLE);
 	    this.mViewFinderView.setVisibility(View.VISIBLE);
 	    this.mLastResult = null;

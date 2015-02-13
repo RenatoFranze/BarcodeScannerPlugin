@@ -61,6 +61,7 @@
         <source-file src="src/android/BarcodeReader/res/drawable-xxhdpi/launcher_icon.png" target-dir="res/drawable-xxhdpi"/>
         <source-file src="src/android/BarcodeReader/res/layout/main.xml" target-dir="res/layout"/>
         <source-file src="src/android/BarcodeReader/res/raw/beep.ogg" target-dir="res/raw"/>
+		<source-file src="src/android/BarcodeReader/res/raw/failbeep.ogg" target-dir="res/raw"/>
 		<source-file src="src/android/BarcodeReader/res/values/arrays.xml" target-dir="res/values"/>
         <source-file src="src/android/BarcodeReader/res/values/colors.xml" target-dir="res/values"/>
         <source-file src="src/android/BarcodeReader/res/values/dimens.xml" target-dir="res/values"/>
