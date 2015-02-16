@@ -30,6 +30,8 @@ public class BarcodeScanner extends CordovaPlugin{
     private static final String TEXT = "text";
     private static final String SCAN_INTENT = "com.comprovei.plugins.barcodescanner.SCAN";
     private static final String BULK_MODE = "BULK_MODE";
+ 	private static final String CHECK_BARCODES = "CHECK_BARCODES";
+ 	private static final String BARCODES = "BARCODES";
     
     private CallbackContext mCallbackContext;
     
@@ -42,18 +44,22 @@ public class BarcodeScanner extends CordovaPlugin{
 
         if (action.equals(SCAN)) { 
 			JSONObject jsonObj = args.optJSONObject(0);    
-			boolean bulkMode = jsonObj.optBoolean(BULK_MODE); 	    	
-			scan(bulkMode);   
+			boolean bulkMode = jsonObj.optBoolean(BULK_MODE); 
+			boolean checkBarcodes = jsonObj.optBoolean(CHECK_BARCODES);
+			String allBarcodes = jsonObj.optString(BARCODES);
+			scan(bulkMode, checkBarcodes, allBarcodes);   
 		} else {
             return false;
         }
         return true;
     }
 
-	public void scan(boolean bulkMode) {
+	public void scan(boolean bulkMode, boolean checkBarcodes, String allBarcodes) {
 		Intent intentScan = new Intent(SCAN_INTENT);
 		intentScan.addCategory(Intent.CATEGORY_DEFAULT);		
 		intentScan.putExtra(BULK_MODE, bulkMode);
+		intentScan.putExtra(CHECK_BARCODES, checkBarcodes);
+		intentScan.putExtra(BARCODES, allBarcodes);
 		
 		intentScan.setPackage(this.cordova.getActivity().getApplicationContext().getPackageName());
 		this.cordova.startActivityForResult((CordovaPlugin) this, intentScan, REQUEST_CODE);
